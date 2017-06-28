@@ -1,5 +1,3 @@
-import java.awt.Color;
-
 /* Demonstration how to use Milight class */
 
 public class Main
@@ -75,6 +73,8 @@ public class Main
 
 				/* Blue */
 				Milight.setColorAndSaturationBasedOnHex("#0000ff");
+				
+				Thread.sleep(400);
 			}
 			catch (InterruptedException e)
 			{
