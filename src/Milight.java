@@ -515,7 +515,7 @@ public class Milight
 
 						doColor = (controlFlags & Milight.MILIGHT_DOCOLOR) == Milight.MILIGHT_DOCOLOR && Math.abs(lastColor - color) >= 1 && !(newWhite = false);
 						doWhite = (controlFlags & Milight.MILIGHT_DOCOLOR) == Milight.MILIGHT_DOCOLOR && newWhite;
-						doBrightness = (controlFlags & Milight.MILIGHT_DOBRGHT) == Milight.MILIGHT_DOBRGHT && Math.abs(lastBrightness - brightness) >= 1;
+						doBrightness = (controlFlags & Milight.MILIGHT_DOBRGHT) == Milight.MILIGHT_DOBRGHT && (Math.abs(lastBrightness - brightness) >= 1 || doWhite);
 						doSaturation = (controlFlags & Milight.MILIGHT_DOSATUR) == Milight.MILIGHT_DOSATUR && Math.abs(lastSaturation - ((controlFlags & Milight.MILIGHT_EMLRGBW) == Milight.MILIGHT_EMLRGBW ? 0 : saturation)) >= 1;
 
 						/* Break out, into synchronized wait, if no changes are to be submitted */
