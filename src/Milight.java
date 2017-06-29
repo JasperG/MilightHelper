@@ -109,6 +109,8 @@ public class Milight
 	public volatile static int newColor;
 	public volatile static int newBrightness;
 	public volatile static int newSaturation;
+	public volatile static int newTemperature = -1;
+	public volatile static boolean newWhite = false;
 
 	/* Name of the network interface in use */
 	public volatile static String networkInterfaceName = "";
@@ -485,7 +487,7 @@ public class Milight
 
 				/* Keep initializations out of the loop */
 				int controlFlags, color, brightness, saturation, group;
-				boolean doColor, doBrightness, doSaturation;
+				boolean doColor, doBrightness, doSaturation, doWhite;
 
 				boolean keepAlive = false;
 				boolean dataSent;
@@ -511,12 +513,13 @@ public class Milight
 						group = milightGroup;
 						controlFlags = Milight.controlFlags;
 
-						doColor = (controlFlags & Milight.MILIGHT_DOCOLOR) == Milight.MILIGHT_DOCOLOR && Math.abs(lastColor - color) >= 1;
+						doColor = (controlFlags & Milight.MILIGHT_DOCOLOR) == Milight.MILIGHT_DOCOLOR && Math.abs(lastColor - color) >= 1 && !(newWhite = false);
+						doWhite = (controlFlags & Milight.MILIGHT_DOCOLOR) == Milight.MILIGHT_DOCOLOR && newWhite;
 						doBrightness = (controlFlags & Milight.MILIGHT_DOBRGHT) == Milight.MILIGHT_DOBRGHT && Math.abs(lastBrightness - brightness) >= 1;
 						doSaturation = (controlFlags & Milight.MILIGHT_DOSATUR) == Milight.MILIGHT_DOSATUR && Math.abs(lastSaturation - ((controlFlags & Milight.MILIGHT_EMLRGBW) == Milight.MILIGHT_EMLRGBW ? 0 : saturation)) >= 1;
 
 						/* Break out, into synchronized wait, if no changes are to be submitted */
-						if (!(isConnected && (doColor || doBrightness || doSaturation)))
+						if (!(isConnected && (doWhite || doColor || doBrightness || doSaturation)))
 						{
 
 							if (isConnected && keepAlive)
@@ -554,6 +557,12 @@ public class Milight
 						{
 							lastColor = color;
 							output.append("Set -> Color ").append(color).append('\n');
+						}
+
+						if (doWhite)
+						{
+							newWhite = false;
+							output.append("Set -> White ").append('\n');
 						}
 
 						if (doBrightness)
@@ -598,6 +607,23 @@ public class Milight
 
 							}
 
+							/* White */
+							if (doWhite)
+							{
+
+								/* RGBWW dual white lamps */
+								if (group <= -2)
+									payloads.add(buildWhitePayload(8, 0));
+
+								/* WiFi bridge */
+								payloads.add(buildWhitePayload(0, 0));
+
+								/* RGBW lamps */
+								if (group == -3 || group == -1)
+									payloads.add(buildWhitePayload(7, 0));
+
+							}
+
 							/* Brightness */
 							if (doBrightness)
 							{
@@ -636,6 +662,11 @@ public class Milight
 							if (doColor)
 							{
 								payloads.add(buildColorPayload(group));
+							}
+
+							if (doWhite)
+							{
+								payloads.add(buildWhitePayload(group, 0));
 							}
 
 							if (doBrightness)
@@ -700,10 +731,20 @@ public class Milight
 	public static void setColorAndSaturationBasedOnHex(String hex)
 	{
 		Color rgb = Color.decode(hex);
+
+		boolean grayscale = (rgb.getRed() == rgb.getGreen() && rgb.getRed() == rgb.getBlue());
+
 		float[] hsbvals = new float[3];
 		Color.RGBtoHSB(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), hsbvals);
 
-		newColor = (int) ((hsbvals[0] * 256) + 128) % 256;
+		if (grayscale)
+		{
+			newWhite = true;
+		}
+		else
+		{
+			newColor = (int) ((hsbvals[0] * 256) + 128) % 256;
+		}
 		newSaturation = (int) (hsbvals[1] * 100);
 		newBrightness = (int) (hsbvals[2] * 100);
 
@@ -807,6 +848,21 @@ public class Milight
 		noOnce = (noOnce + 1) % 256;
 
 		return payload;
+	}
+
+	private byte[] buildWhitePayload(int group, int milightZone)
+	{
+
+		byte[] payload = new byte[] { (byte) 128, (byte) 0, (byte) 0, (byte) 0, (byte) 17, milightSessionByte1, milightSessionByte2, (byte) 0, (byte) (-128 + noOnce), (byte) 0, (byte) 49, milightPasswordByte1, milightPasswordByte2, (byte) group, (byte) (group == 8 ? 5 : 3), (byte) (group == 8 || group == 3 ? (newTemperature != -1 ? newTemperature : 65) : 5), (byte) 0, (byte) 0, (byte) 0, (byte) (group == 0 ? 0 : milightZone), (byte) 0, (byte) 0 };
+
+		/* Checksum */
+		payload[21] = (byte) ((char) (0xFF & payload[10]) + (char) (0xFF & payload[11]) + (char) (0xFF & payload[12]) + (char) (0xFF & payload[13]) + (char) (0xFF & payload[14]) + (char) (0xFF & payload[15]) + (char) (0xFF & payload[16]) + (char) (0xFF & payload[17]) + (char) (0xFF & payload[18]) + (char) (0xFF & payload[19]) + (char) (0xFF & payload[20]));
+
+		/* Increment sequential number */
+		noOnce = (noOnce + 1) % 256;
+
+		return payload;
+
 	}
 
 	public void switchOnOff(boolean onOff)

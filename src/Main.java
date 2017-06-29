@@ -68,7 +68,17 @@ public class Main
 
 				/* Green */
 				Milight.setColorAndSaturationBasedOnHex("#00ff00");
+				
+				Thread.sleep(2000);
+				
+				/* White, (full bright white) */
+				Milight.setColorAndSaturationBasedOnHex("#ffffff");
 
+				Thread.sleep(2000);
+				
+				/* Gray (dimmed white) */
+				Milight.setColorAndSaturationBasedOnHex("#666666");
+				
 				Thread.sleep(2000);
 
 				/* Blue */
